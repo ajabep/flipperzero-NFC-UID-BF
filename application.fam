@@ -1,0 +1,17 @@
+# For details & more options, see documentation/AppManifests.md in firmware repo
+
+App(
+    appid="nfc_uid_bf",  # Must be unique
+    name="DES UID Bruteforce",  # Displayed in menus
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="nfc_uid_bf_app",
+    stack_size=2 * 1024,
+    fap_category="Examples",
+    # Optional values
+    # fap_version="0.1",
+    fap_icon="nfc_uid_bf.png",  # 10x10 1-bit PNG
+    # fap_description="A simple app",
+    # fap_author="J. Doe",
+    # fap_weburl="https://github.com/user/nfc_uid_bf",
+    fap_icon_assets="images",  # Image assets to compile for this application
+)
