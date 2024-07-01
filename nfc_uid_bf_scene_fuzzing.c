@@ -1,49 +1,8 @@
 #include "nfc_uid_bf_scene_fuzzing.h"
 
 /* TODO
-dolphin_deed(
-DolphinDeedNfcEmulate);
+dolphin_deed(DolphinDeedNfcEmulate);
 */
-
-NfcCommand nfc_uid_bf_emulate_listener_callback_iso14443_4a(NfcGenericEvent event, void* context) {
-    furi_assert(context);
-    furi_assert(event.protocol == NfcProtocolIso14443_4a);
-    furi_assert(event.event_data);
-
-    UNUSED(event);
-    UNUSED(context);
-
-    // TODO    NfcUidBf* nfc = context;
-    // TODO    Iso14443_4aListenerEvent* iso14443_4a_event = event.event_data;
-    // TODO
-    // TODO    if(iso14443_4a_event->type == Iso14443_4aListenerEventTypeReceivedData) {
-    // TODO        if(furi_string_size(nfc->text_box_store) < NFC_LOG_SIZE_MAX) {
-    // TODO            furi_string_cat_printf(nfc->text_box_store, "R:");
-    // TODO            for(size_t i = 0; i < bit_buffer_get_size_bytes(iso14443_4a_event->data->buffer);
-    // TODO                i++) {
-    // TODO                furi_string_cat_printf(
-    // TODO                    nfc->text_box_store,
-    // TODO                    " %02X",
-    // TODO                    bit_buffer_get_byte(iso14443_4a_event->data->buffer, i));
-    // TODO            }
-    // TODO            furi_string_push_back(nfc->text_box_store, '\n');
-    // TODO            view_dispatcher_send_custom_event(nfc->view_dispatcher, NfcCustomEventListenerUpdate);
-    // TODO        }
-    // TODO    }
-
-    return NfcCommandContinue;
-}
-
-void nfc_uid_bf_emulate_listener_start_iso14443_4a(NfcUidBf* app) {
-    const Iso14443_4aData* iso14443_4a_data =
-        nfc_device_get_data(app->nfc_device, NfcProtocolIso14443_4a);
-
-    app->listener = nfc_listener_alloc(app->nfc, NfcProtocolIso14443_4a, iso14443_4a_data);
-    nfc_listener_start(app->listener, nfc_uid_bf_emulate_listener_callback_iso14443_4a, app);
-}
-// TODO void  nfc_uid_bf_emulate_listener_stop_iso14443_4a(NfcUidBf* app) {
-// TODO     nfc_listener_stop(app->listener);
-// TODO }
 
 void nfc_uid_bf_string_to_uppercase(FuriString* string) {
     char c;
@@ -100,13 +59,13 @@ void nfc_uid_bf_current_uid_get_intarray(NfcUidBf* app, uint8_t* uid, int uid_le
         if(c1 < 'A') {
             c3 = c1 - '0';
         } else {
-            c3 = c1 - 'A';
+            c3 = c1 - 'A' + 0xa;
         }
-        c3 <<= 4;
+        c3 *= 0x10;
         if(c2 < 'A') {
-            c3 = c2 - '0';
+            c3 += c2 - '0';
         } else {
-            c3 = c2 - 'A';
+            c3 += c2 - 'A' + 0xa;
         }
         uid[i] = c3;
     }
@@ -168,6 +127,38 @@ void nfc_uid_bf_current_uid_refresh(NfcUidBf* app) {
     view_dispatcher_switch_to_view(app->view_dispatcher, NfcUidBfView_Fuzzing);
 }
 
+NfcCommand nfc_uid_bf_listener_ignore_callback(NfcGenericEvent event, void* context) {
+    UNUSED(event);
+    UNUSED(context);
+    return NfcCommandContinue;
+}
+
+void nfc_uid_bf_listener_start(NfcUidBf* app) {
+    size_t uid_len = 7;
+    uint8_t* uid = malloc(uid_len);
+    MfDesfireData* blank = mf_desfire_alloc();
+    nfc_uid_bf_current_uid_get_intarray(app, uid, uid_len);
+    nfc_device_set_data(app->nfc_device, NfcProtocolMfDesfire, blank);
+    nfc_device_set_uid(app->nfc_device, uid, uid_len);
+
+    const Iso14443_4aData* iso14443_4a_data =
+        nfc_device_get_data(app->nfc_device, NfcProtocolIso14443_4a);
+
+    app->listener = nfc_listener_alloc(app->nfc, NfcProtocolIso14443_4a, iso14443_4a_data);
+    nfc_listener_start(app->listener, nfc_uid_bf_listener_ignore_callback, NULL);
+    free(uid);
+}
+
+void nfc_uid_bf_listener_stop(NfcUidBf* app) {
+    nfc_listener_stop(app->listener);
+    nfc_listener_free(app->listener);
+}
+
+void nfc_uid_bf_listener_update(NfcUidBf* app) {
+    nfc_uid_bf_listener_stop(app);
+    nfc_uid_bf_listener_start(app);
+}
+
 void nfc_uid_bf_scene_on_enter_fuzzing(void* context) {
     NfcUidBf* app = context;
     DialogEx* dialog_ex = app->dialog_ex;
@@ -183,18 +174,7 @@ void nfc_uid_bf_scene_on_enter_fuzzing(void* context) {
     dialog_ex_set_result_callback(dialog_ex, nfc_uid_bf_fuzzing_dialog_callback);
     nfc_uid_bf_current_uid_refresh(app);
 
-    size_t uid_len = 7;
-    uint8_t* uid = malloc(uid_len);
-    MfDesfireData* blank = mf_desfire_alloc();
-    nfc_uid_bf_current_uid_get_intarray(app, uid, uid_len);
-    nfc_device_set_data(app->nfc_device, NfcProtocolMfDesfire, blank);
-    nfc_device_set_uid(app->nfc_device, uid, uid_len);
-    //app->nfc_device;
-    //app->nfc_device;
-    //app->nfc_device;
-    //app->nfc_device;
-    //app->nfc_device;
-    free(uid);
+    nfc_uid_bf_listener_start(app);
 
     notification_message(app->notifications, &sequence_blink_start_magenta);
 }
@@ -206,10 +186,12 @@ bool nfc_uid_bf_scene_on_event_fuzzing(void* context, SceneManagerEvent event) {
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == DialogExResultRight) {
             nfc_uid_bf_current_uid_inc(app);
+            nfc_uid_bf_listener_update(app);
             nfc_uid_bf_current_uid_refresh(app);
             consumed = true;
         } else if(event.event == DialogExResultLeft) {
             nfc_uid_bf_current_uid_dec(app);
+            nfc_uid_bf_listener_update(app);
             nfc_uid_bf_current_uid_refresh(app);
             consumed = true;
         } else if(event.event == DialogExResultCenter) {
@@ -224,6 +206,7 @@ bool nfc_uid_bf_scene_on_event_fuzzing(void* context, SceneManagerEvent event) {
 
 void nfc_uid_bf_scene_on_exit_fuzzing(void* context) {
     NfcUidBf* app = context;
+    nfc_uid_bf_listener_stop(app);
     dialog_ex_reset(app->dialog_ex);
     notification_message(app->notifications, &sequence_blink_stop);
 }

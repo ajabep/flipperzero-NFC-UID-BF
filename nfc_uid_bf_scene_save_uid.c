@@ -1,9 +1,8 @@
 #include "nfc_uid_bf_scene_save_uid.h"
 
 /* TODO
-                dolphin_deed(
-                    DolphinDeedNfcAddSave);
-                        */
+dolphin_deed(DolphinDeedNfcEmulate);
+*/
 
 void nfc_uid_bf_scene_on_enter_save_uid(void* context) {
     NfcUidBf* app = context;

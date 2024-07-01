@@ -1,7 +1,5 @@
 #include "nfc_uid_bf_scene_choose_uid_pattern.h"
 
-#define DES_UID_LEN 7
-
 /* it does not exists in the firmware :sob: */
 size_t strnlen(const char* str, size_t length) {
     size_t i = 0;
@@ -29,20 +27,20 @@ bool nfc_uid_bf_validate_pattern(const char* text, FuriString* error, void* cont
 
     size_t text_len = strnlen(text, NFC_UID_BF_TEXT_STORE_SIZE);
 
-    if(text_len < DES_UID_LEN * 2) {
+    if(text_len < MF_DESFIRE_UID_SIZE * 2) {
         RETURN_ERROR(
             "UID Pattern\n"
             "not long\n"
             "enough.\n"
             "Should be %d",
-            DES_UID_LEN * 2);
+            MF_DESFIRE_UID_SIZE * 2);
     }
-    if(text_len > DES_UID_LEN * 2) {
+    if(text_len > MF_DESFIRE_UID_SIZE * 2) {
         RETURN_ERROR(
             "UID Pattern\n"
             "too long.\n"
             "Should be %d",
-            DES_UID_LEN * 2);
+            MF_DESFIRE_UID_SIZE * 2);
     }
 
     uint8_t i;
